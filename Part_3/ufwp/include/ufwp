@@ -1,0 +1,82 @@
+#include<iostream>
+#include<map>
+#include<utility>
+using namespace std;
+namespace ufwp
+{
+
+class URLEncoder
+{
+public:
+static void decode(int dataCount,char ** &data);
+static void encode(int dataCount,char ** &data);
+};
+
+
+class Request
+{
+private:
+typedef struct _request
+{
+char *method;
+char *resource;
+char isClientSideTechnologyResource;
+char *mimeType;
+int dataCount;
+char **data;
+}REQUEST;
+REQUEST *request;
+int clientSocketDescriptor;
+map<string,void(*)(Request &,Response &)> reqmap;
+int extensionEquals(const char *left,const char *right);
+char* getMimeType(char *resource);
+char isClientResource(char *resource);
+REQUEST * parseRequest(char *bytes);
+public:
+Request(RequestDesigation *);
+~Request( );
+string get(const char *);
+void clear( );
+const char* giveResource( );
+char isClientTechnologySide( );
+const char* giveMime( );
+void forward(char *);
+};
+
+class Response
+{
+private:
+string response;
+int clientSocketDescriptor;
+public:
+Response(int);
+void write(const char *);
+void write(int);
+void sendResponse( );
+void close( );
+int size( );
+};
+
+class RequestDesigation
+{
+public:
+int clientSocketDescriptor;
+char *bytes;
+map<string,void(*)(Request &,Response &)> resdegmap;
+
+};
+
+class UfWebProjector
+{
+private:
+int portNumber;
+map<string,void(*)(Request &,Response &)> serverSideTechnologyRequestMap;
+//char *url;
+//void(*ptrOnRequest)(Request &,Response &);
+public:
+UfWebProjector(int portNumber);
+~UfWebProjector( );
+void onRequest(const char *,void(*)(Request &,Response &));
+void start( );
+};
+}

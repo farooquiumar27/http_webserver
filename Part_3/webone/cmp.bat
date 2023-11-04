@@ -1,0 +1,1 @@
+g++ app4.cpp -o app4.exe -I ../ufwp/include -L ../ufwp/lib -l ufwp -l ws2_32
