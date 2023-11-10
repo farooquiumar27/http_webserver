@@ -34,39 +34,77 @@ if(data[e][f]==' ')data[e][f]='+';
 Response::Response(int clientSocketDescriptor)
 {
 this->clientSocketDescriptor=clientSocketDescriptor;
+this->FILE_NAME="response.data";
+this->clear( );
 }
 void Response::write(const char *_response)
 {
-if(_response!=NULL)this->response=this->response+_response;
+FILE *f=fopen(FILE_NAME.c_str( ),"ab");
+fwrite(_response,strlen(_response),1,f);
+fclose(f);
+}
+void Response::write(const char *_response,int length)
+{
+FILE *f=fopen(FILE_NAME.c_str( ),"ab");
+fwrite(_response,length,1,f);
+fclose(f);
 }
 int Response::size( )
 {
-return this->response.size( );
+FILE *f;
+f=fopen(FILE_NAME.c_str( ),"rb");
+fseek(f,0,SEEK_END);
+int length=ftell(f);
+fseek(f,0,SEEK_SET);
+fclose(f);
+return length;
 }
-void Response::sendResponse( )
+void Response::sendResponse(const char *mimeType)
 {
-int result;
-char header[201];
-printf("Sending processed page\n");
-sprintf(header,"HTTP/1.1 200 OK\nContent-Type : text/html\nContent-Length : %d\nConnection: close\n\n",this->response.size( ));
-string temp(header);
-temp=temp+this->response;
-send(this->clientSocketDescriptor,temp.c_str( ),temp.size( ),0);
+int length,i,rc;
+char responseBuffer[1024];
+FILE *f;
+f=fopen(FILE_NAME.c_str( ),"rb");
+fseek(f,0,SEEK_END); //move the internal pointer to the end of the file.
+length=ftell(f);
+fseek(f,0,SEEK_SET); //move the internal pointer to the start of file.
+sprintf(responseBuffer,"HTTP/1.1 200 OK\nContent-Type : %s\nContent-Length : %d\nConnection: close\n\n",mimeType,length);
+send(this->clientSocketDescriptor,responseBuffer,strlen(responseBuffer),0);
+i=0;
+while(i<length)
+{
+rc=length-i;
+if(rc>1024)rc=1024;
+fread(responseBuffer,rc,1,f);
+send(this->clientSocketDescriptor,responseBuffer,rc,0);
+i+=rc;
+}
+fclose(f);
+this->clear( );
+}
+void Response::clear( )
+{
+FILE *f;
+f=fopen(this->FILE_NAME.c_str( ),"wb");
+fclose(f);
 }
 void Response::close( )
 {
 closesocket(this->clientSocketDescriptor);
 }
 
-Request::Request(RequestDesignation::RequestDesignation *rd)
+Request::Request(char *bytes)
 {
-this->request=parseRequest(rd->bytes);
-this->clientSocketDescriptor=rd->clientSocketDescriptor;
-this->reqmap=rd->resdegmap;
+this->request=parseRequest(bytes);
+this->response=NULL;
 }
 Request::~Request( )
 {
 this->clear( );
+}
+void Request::setResponse(Response *response)
+{
+this->response=response;
 }
 string Request::get(const char *info)
 {
@@ -102,6 +140,7 @@ if(this->request->data!=NULL)
 for(int k=0;k<this->request->dataCount;k++)free(this->request->data[k]);
 free(this->request->data);
 }
+//if(this->response!=NULL)free(this->response);  //point of dout 
 free(this->request);
 }
 }
@@ -109,13 +148,97 @@ const char* Request::giveResource( )
 {
 return this->request->resource;
 }
-char Request::isClientTechnologySide( )
+char Request::giveTechnologySide( )
 {
 return this->request->isClientSideTechnologyResource;
 }
 const char* Request::giveMime( )
 {
 return this->request->mimeType;
+}
+void Request::fillMap(string url,void(*ptr)(Request &,Response &))
+{
+if(url.c_str( )==NULL || ptr==NULL)return;
+this->serverSideTechnologyRequestMap_2.insert(pair<string,void(*)(Request &,Response &)>(url,ptr));
+}
+void Request::forward(const char *resource)
+{
+if(resource==NULL)return;
+cout<<"Request forwarded for "<<resource<<endl;
+char responseBuffer[1024];
+FILE *f;
+int length,rc,i;
+int ii=0;
+if(resource[ii]=='/')ii++;
+char *_resource=(char *)malloc(sizeof(char)*strlen(resource)+1);
+strcpy(_resource,resource);
+_resource[strlen(_resource)]='\0';
+if(isClientResource(_resource)=='Y')
+{
+f=fopen(&resource[ii],"rb");
+if(f==NULL)
+{
+//resource not found
+printf("Sending 404 page\n");
+char temp[501];
+sprintf(temp,"<DOCTYPE HTML><html lang='en'><head><meta charset='utf-8'><title>UF WEB PROJECTOR</title></head><body><h2 style='color : red'>Resource /%s not found</h2></body></html>",resource);
+this->response->write(temp);
+this->response->sendResponse("text/html");
+this->response->close( );
+this->response->clear( );
+this->clear( );
+}
+else
+{
+//client technology resource
+fseek(f,0,SEEK_END); //move the internal pointer to the end of the file.
+length=ftell(f);
+fseek(f,0,SEEK_SET); //move the internal pointer to the start of file.
+//sprintf(responseBuffer,"HTTP/1.1 200 OK\nContent-Type : %s\nContent-Length : %d\nConnection: close\n\n",getMimeType(resourse),length);
+i=0;
+while(i<length)
+{
+rc=length-i;
+if(rc>1024)rc=1024;
+fread(responseBuffer,rc,1,f);
+//send(clientSocketDescriptor,responseBuffer,rc,0);
+this->response->write(responseBuffer,rc);
+i+=rc;
+}
+fclose(f);
+this->response->sendResponse(this->getMimeType(_resource));
+this->response->close( );
+this->response->clear( );
+this->clear( );
+}
+}
+else
+{
+map<string,void(*)(Request &,Response &)>::iterator it;
+it=this->serverSideTechnologyRequestMap_2.find(string(&resource[ii]));
+int fou=(it!=this->serverSideTechnologyRequestMap_2.end( ))?1:0;
+if(fou==0)
+{
+printf("Sending 404 page\n");
+char temp[501];
+sprintf(temp,"<DOCTYPE HTML><html lang='en'><head><meta charset='utf-8'><title>UF WEB PROJECTOR</title></head><body><h2 style='color : red'>Resource /%s not found</h2></body></html>",&resource[ii]);
+this->response->write(temp);
+this->response->sendResponse("text/html");
+this->response->close( );
+this->response->clear( );
+this->clear( );
+}
+else
+{
+void(*ptr)(Request &,Response &);
+ptr=it->second;
+ptr(*this,*(this->response));
+this->response->close( );
+this->response->clear( );
+this->clear( );
+}
+}
+free(_resource);
 }
 int Request::extensionEquals(const char *left,const char *right)
 {
@@ -275,58 +398,6 @@ request->mimeType=getMimeType(resource);
 return request;
 }
 
-void Request::forward(char *res)
-{
-char *resource;
-int e=0;
-if(res[0]=='/')e++;
-resource=&res[e];
-if(this->isClientResource(resource)=='Y')
-{
-FILE *f;
-char responseBuffer[1025];
-char *mimeType;
-int length,i,rc;
-mimeType=this->getMimeType(resource);
-f=fopen(resource,"rb");
-if(f!=NULL)printf("Sending %s\n",resource);
-if(f==NULL)
-{
-//resource not found
-printf("Sending 404 page\n");
-char temp[501];
-sprintf(temp,"<DOCTYPE HTML><html lang='en'><head><meta charset='utf-8'><title>UF WEB PROJECTOR</title></head><body><h2 style='color : red'>Resource /%s not found</h2></body></html>",resource);
-sprintf(responseBuffer,"HTTP/1.1 200 OK\nContent-Type : text/html\nContent-Length : %d\nConnection: close\n\n",strlen(temp));
-strcat(responseBuffer,temp);
-send(this->clientSocketDescriptor,responseBuffer,strlen(responseBuffer),0);
-this->clear( );
-}
-else
-{
-//server resource
-fseek(f,0,SEEK_END); //move the internal pointer to the end of the file.
-length=ftell(f);
-fseek(f,0,SEEK_SET); //move the internal pointer to the start of file.
-sprintf(responseBuffer,"HTTP/1.1 200 OK\nContent-Type : %s\nContent-Length : %d\nConnection: close\n\n",mimeType,length);
-send(this->clientSocketDescriptor,responseBuffer,strlen(responseBuffer),0);
-i=0;
-while(i<length)
-{
-rc=length-i;
-if(rc>1024)rc=1024;
-fread(responseBuffer,rc,1,f);
-send(clientSocketDescriptor,responseBuffer,rc,0);
-//printf("%s\n",responseBuffer);
-i+=rc;
-}
-this->clear( );
-fclose(f);
-closesocket(clientSocketDescriptor);
-}
-}
-
-}
-
 UfWebProjector::UfWebProjector(int portNumber)
 {
 this->portNumber=portNumber;
@@ -390,7 +461,6 @@ listen(serverSocketDescriptor,10);
 while(1)
 {
 //loop starts here.
-
 printf("MY SERVER IS READY TO ACCEPT REQUEST\n");
 len=sizeof(clientSocketInformation);
 clientSocketDescriptor=accept(serverSocketDescriptor,(struct sockaddr *)&clientSocketInformation,&len);
@@ -419,20 +489,18 @@ else
 printf("Control [3] IN\n");
 requestBuffer[bytesExtracted]='\0';
 //REQUEST *request=parseRequest(requestBuffer);
-RequestDesigation *rd;
-rd= new RequestDesigation;
-rd->bytes=requestBuffer;
-rd->clientSocketDescriptor=clientSocketDescriptor;
-map<string ,void(*)(Request &,Response &)>::iterator it;
-it=serverSideTechnologyRequestMap.begin( );
-while(it!=serverSideTechnologyRequestMap.end( ))
-{
-rd->resdegmap[it->first]=it->second;
-++i;
-}
-Request _Request(rd);
 
-if(_Request.isClientTechnologySide( )=='Y')
+Request _Request(requestBuffer);
+
+if(this->serverSideTechnologyRequestMap.size( )>0)
+{
+for(map<string,void(*)(Request &,Response &)>::iterator it=this->serverSideTechnologyRequestMap.begin( );it!=this->serverSideTechnologyRequestMap.end( );++it)
+{
+_Request.fillMap(it->first,it->second);
+}
+}
+
+if(_Request.giveTechnologySide( )=='Y')
 {
 if(_Request.giveResource( )==NULL)
 {
@@ -560,6 +628,7 @@ i=serverSideTechnologyRequestMap.find(_temp);
 if(i!=serverSideTechnologyRequestMap.end( ))
 {
 Response _response(clientSocketDescriptor);
+_Request.setResponse(&_response);
 void(*ptr)(Request &,Response &);
 ptr=i->second;
 ptr(_Request,_response);

@@ -39,7 +39,7 @@ response.write("<button type='submit'>OK</button>\n");
 response.write("</form>\n");
 response.write("</body>");
 response.write("</html>");
-response.sendResponse( );
+response.sendResponse("text/html");
 response.close( );
 }
 
@@ -83,7 +83,7 @@ response.write("<a href='index.html'>Home</a>\n");
 fclose(f);
 response.write("</body>\n");
 response.write("</html>\n");
-response.sendResponse( );
+response.sendResponse("text/html");
 response.close( );
 }
 void sendStudentEditForm(Request &request,Response &response)
@@ -129,7 +129,7 @@ response.write("</form>\n");
 response.write("<a href='index.html'>Home</a>\n");
 response.write("</body>\n");
 response.write("</html>\n");
-response.sendResponse( );
+response.sendResponse("text/html");
 response.close( );
 }
 
@@ -186,7 +186,7 @@ response.write("<button type='submit'>OK</button>\n");
 response.write("</form>\n");
 response.write("</body>\n");
 response.write("</html>\n");
-response.sendResponse( );
+response.sendResponse("text/html");
 response.close( );
 }
 
@@ -233,7 +233,7 @@ response.write("</form>\n");
 response.write("<a href='index.html'>Home</a>\n");
 response.write("</body>\n");
 response.write("</html>\n");
-response.sendResponse( );
+response.sendResponse("text/html");
 response.close( );
 }
 
@@ -283,11 +283,9 @@ response.write("<button type='submit'>OK</button>\n");
 response.write("</form>\n");
 response.write("</body>\n");
 response.write("</html>\n");
-response.sendResponse( );
+response.sendResponse("text/html");
 response.close( );
-
 }
-
 void functionOne(Request &request,Response &response)
 {
 cout<<"One got called"<<endl;
@@ -295,13 +293,32 @@ request.forward("/xyz.html");
 }
 void functionTwo(Request &request,Response &response)
 {
-
+cout<<"Two got called"<<endl;
+request.forward("/cool.jpg");
 }
 void functionThree(Request &request,Response &response)
 {
-
+cout<<"Three got called"<<endl;
+request.forward("/functionFour");
 }
-
+void functionFour(Request &request,Response &response)
+{
+cout<<"Four got called"<<endl;
+response.write("<! DOCTYPE HTML>");
+response.write("<html lang='en'>");
+response.write("<meta charset='utf-8'>");
+response.write("<head>");
+response.write("<title>ABCL School , Ujjain</title>");
+response.write("</head>");
+response.write("<body>");
+response.write("ABCL School is great");
+response.write("<BR>");
+response.write("<a href='index.html'>Home</a>\n");
+response.write("</body>");
+response.write("</html>");
+response.sendResponse("text/html");
+response.close( );
+}
 int main( )
 {
 UfWebProjector server(8080);
@@ -314,6 +331,7 @@ server.onRequest("/deleteStudent",deleteStudentData);
 server.onRequest("/functionOne",functionOne);
 server.onRequest("/functionTwo",functionTwo);
 server.onRequest("/functionThree",functionThree);
+server.onRequest("/functionFour",functionFour);
 server.start( );
 return 0;
 }
