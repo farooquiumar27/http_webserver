@@ -1,0 +1,23 @@
+<!DOCTYPE HTML>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<title>ABCL School Marksheet</title>
+</head>
+<body>
+<h1>Student Marksheet</h1><br>
+<form action='index.html'>
+<Table , border='1'>
+<tr><td>Physics</td><td>${physics}</td></tr>
+<tr><td>Chemistry</td><td>${chemistry}</td></tr>
+<tr><td>Maths</td><td>${maths}</td></tr>
+<tr><td>Biolodgy</td><td>${biolodgy}</td></tr>
+<tr><td>Hindi</td><td>${hindi}</td></tr>
+<tr><td>English</td><td>${english}</td></tr>
+</table>
+<br>
+<br>
+<button type='submit'>OK</button>
+</form>
+</body>
+</html>

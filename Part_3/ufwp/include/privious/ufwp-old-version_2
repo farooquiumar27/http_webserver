@@ -1,6 +1,5 @@
 #include<iostream>
 #include<map>
-#include<unordered_map>
 #include<utility>
 using namespace std;
 namespace ufwp
@@ -42,13 +41,9 @@ int dataCount;
 char **data;
 }REQUEST;
 REQUEST *request;
-int sct;
 Response *response;  //for forwarding the request we need it.
 map<string,void(*)(Request &,Response &)> serverSideTechnologyRequestMap_2;  //for cheching the server resourse in case of request forwarding
-unordered_map<string, int> intMap;  //for app_dev to insert info before forwarding and then sending to another function
 int extensionEquals(const char *left,const char *right);
-void findAndReplace(const char *resource);
-void undoReplacement(const char *resource);
 char* getMimeType(char *resource);
 char isClientResource(char *resource);
 REQUEST * parseRequest(char *bytes);
@@ -63,8 +58,6 @@ char giveTechnologySide( );
 const char* giveMime( );
 void fillMap(string,void(*)(Request &,Response &));
 void forward(const char *resourse);
-void setInt(const char *,int);
-int getInt(const char *);
 };
 
 
