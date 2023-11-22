@@ -1,0 +1,1 @@
+g++ app7.cpp -o app7.exe -I ../ufwp/include -L ../ufwp/lib -l ufwp -l ws2_32

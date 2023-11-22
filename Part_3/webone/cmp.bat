@@ -1,1 +1,0 @@
-g++ app8.cpp -o app8.exe -I ../ufwp/include -L ../ufwp/lib -l ufwp -l ws2_32

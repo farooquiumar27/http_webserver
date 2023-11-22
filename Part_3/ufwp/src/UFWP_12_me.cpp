@@ -102,6 +102,7 @@ Request::Request(char *bytes)
 this->request=parseRequest(bytes);
 this->response=NULL;
 this->sct=0;
+this->resourceSCT="temp.sct";
 }
 Request::~Request( )
 {
@@ -169,7 +170,7 @@ this->serverSideTechnologyRequestMap_2.insert(pair<string,void(*)(Request &,Resp
 void Request::forward(const char *resource)
 {
 if(resource==NULL)return;
-cout<<"Request forwarded for [["<<resource<<"]]"<<endl;
+cout<<"Request forwarded for "<<resource<<endl;
 char responseBuffer[1024];
 FILE *f;
 int length,rc,i;
@@ -200,8 +201,12 @@ else
 int dot;
 for(dot=strlen(resource)-1;resource[dot]!='.';dot--);
 int res=extensionEquals("sct",&resource[dot+1]);
-if(res)findAndReplace(&resource[ii]);
-
+if(res)
+{
+findAndReplace(&resource[ii]);
+fclose(f);
+f=fopen(this->resourceSCT.c_str( ),"rb");
+}
 fseek(f,0,SEEK_END); //move the internal pointer to the end of the file.
 length=ftell(f);
 fseek(f,0,SEEK_SET); //move the internal pointer to the start of file.
@@ -218,7 +223,6 @@ i+=rc;
 }
 fclose(f);
 this->response->sendResponse(this->getMimeType(_resource));
-if(this->sct)undoReplacement(&resource[ii]);
 this->response->close( );
 this->response->clear( );
 this->clear( );
@@ -260,26 +264,6 @@ int Request::getInt(const char  *_str)
 {
 unordered_map<string,int>::iterator it=this->intMap.find(string(_str));
 return (it==this->intMap.end( ))?-1:it->second;
-}
-void Request::forward_tech2(const char *resource)   //for forward_technique_2 [sir wala idea]
-{
-this->isForwarded=1;
-this->forwardedResource=resource;
-}
-int Request::checkIsForwarded( )   //for forward_technique_2
-{
-return this->isForwarded;
-}
-void Request::buildForwardRequest( )   //for forward_technique_2
-{
-cout<<"Request forwarded for ("<<this->forwardedResource<<")"<<endl;
-this->forwardedResource="GET "+this->forwardedResource+" ";
-char *bytes=new char[this->forwardedResource.size( )];
-strcpy(bytes,forwardedResource.c_str( ));
-this->request=parseRequest(bytes);
-this->isForwarded=0;
-delete this->forwardedResource.c_str( );
-free(bytes);
 }
 int Request::extensionEquals(const char *left,const char *right)
 {
@@ -367,7 +351,6 @@ void Request::findAndReplace(const char *resource)
 this->sct=1;
 int length=this->intMap.size( );
 unordered_map<string, string> valueMap;
-//map<string, string> valueMap;
 for(unordered_map<string,int>::iterator it=this->intMap.begin( );it!=this->intMap.end( );++it)
 {
 valueMap[string("${"+it->first+"}")]=to_string(it->second);
@@ -376,16 +359,7 @@ FILE *f,*t;
 int pos,found;
 char a,b;
 f=fopen(resource,"r");
-t=fopen("temp.sct","a");
-while(1)
-{
-a=fgetc(f);
-if(feof(f))break;
-fputc(a,t);
-}
-fclose(t);
-fseek(f,0,SEEK_SET);
-t=fopen("temp.xyz","a");
+t=fopen(this->resourceSCT.c_str( ),"w");
 while(1)
 {
 a=fgetc(f);
@@ -428,39 +402,7 @@ fputc(a,t);
 }
 fclose(f);
 fclose(t);
-
-f=fopen(resource,"w");
-t=fopen("temp.xyz","r");
-while(1)
-{
-a=fgetc(t);
-if(feof(t))break;
-fputc(a,f);
 }
-fclose(f);
-fclose(t);
-t=fopen("temp.xyz","w");
-fclose(t);
-}
-void Request::undoReplacement(const char *resource)
-{
-this->sct=0;
-FILE *f,*t;
-char a;
-f=fopen(resource,"w");
-t=fopen("temp.sct","r");
-while(1)
-{
-a=fgetc(t);
-if(feof(t))break;
-fputc(a,f);
-}
-fclose(f);
-fclose(t);
-f=fopen("temp.sct","w");
-fclose(f);
-}
-
 Request::REQUEST * Request::parseRequest(char *bytes)
 {
 char method[11];
@@ -644,11 +586,7 @@ for(map<string,void(*)(Request &,Response &)>::iterator it=this->serverSideTechn
 _Request.fillMap(it->first,it->second);
 }
 }
-int count=1;
-while(count || _Request.checkIsForwarded( ))
-{
-count=0;
-if(_Request.checkIsForwarded( ))_Request.buildForwardRequest( );   //for forward_technique_2
+
 if(_Request.giveTechnologySide( )=='Y')
 {
 if(_Request.giveResource( )==NULL)
@@ -796,10 +734,10 @@ _Request.clear( );
 }
 
 }
-}    //for forward_technique_2 ending of while loop
+}
+}
 
-}
-}
+
 }   //this is the ending paranthasis of the infinte loop.
 
 
